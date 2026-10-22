@@ -12,18 +12,16 @@ function fail(message) {
 }
 
 self.onmessage = async (event) => {
-  const { bytes, args } = event.data;
+  const { bytes, args, wasm } = event.data;
   settled = false;
   logs = [];
   try {
-    const wasmResponse = await fetch(new URL("./gs-worker.wasm", import.meta.url));
-    if (!wasmResponse.ok) {
+    if (!wasm) {
       fail("Ghostscript could not be loaded. Reload the page and try again.");
       return;
     }
-    const wasmBinary = await wasmResponse.arrayBuffer();
     self.Module = {
-      wasmBinary,
+      wasmBinary: wasm,
       noExitRuntime: 1,
       arguments: args,
       print(text) { logs.push(String(text)); },
