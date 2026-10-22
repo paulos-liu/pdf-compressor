@@ -17,7 +17,7 @@ self.onmessage = async (event) => {
   logs = [];
   try {
     if (!wasm) {
-      fail("Ghostscript could not be loaded. Reload the page and try again.");
+      fail("The compression library could not be loaded. Reload the page and try again.");
       return;
     }
     self.Module = {

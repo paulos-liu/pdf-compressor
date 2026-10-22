@@ -65,18 +65,12 @@
     }
 
     h1 {
-      margin: 0 0 6px;
+      margin: 0 0 22px;
       font-size: 1.7rem;
       line-height: 1.15;
       font-weight: 700;
       letter-spacing: -0.02em;
       text-wrap: balance;
-    }
-
-    .lede {
-      margin: 0 0 22px;
-      color: var(--muted);
-      max-width: 28ch;
     }
 
     .drop {
@@ -276,6 +270,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .loading.is-indeterminate .fill { animation: none; }
+      .spinner { animation: none; }
     }
 
     .figures {
@@ -313,14 +308,30 @@
 
     button,
     a.primary {
-      height: 48px;
+      min-height: 48px;
       border: 0;
       border-radius: 2px;
       font-weight: 700;
       cursor: pointer;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       text-decoration: none;
+    }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      flex: none;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     .primary {
@@ -378,11 +389,10 @@
 <body>
   <main class="sheet" id="app" data-state="empty">
     <h1>Compress a PDF</h1>
-    <p class="lede">The file stays on this computer.</p>
 
-    <div class="loading" id="loading" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading Ghostscript">
+    <div class="loading" id="loading" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading compression library">
       <div class="loading-row">
-        <span>Loading Ghostscript</span>
+        <span>Loading compression library</span>
         <span class="loading-pct" id="loading-pct">0%</span>
       </div>
       <div class="track"><div class="fill" id="loading-fill"></div></div>
@@ -468,7 +478,10 @@
     </div>
 
     <div class="actions">
-      <button class="primary" id="compress" type="button" disabled>Compress</button>
+      <button class="primary" id="compress" type="button" disabled>
+        <span class="spinner" id="compress-spinner" hidden aria-hidden="true"></span>
+        <span id="compress-label">Compress</span>
+      </button>
       <a class="primary" id="download" hidden>Download</a>
       <button class="text" id="again" type="button" hidden>Compress another</button>
     </div>
@@ -498,6 +511,8 @@
     const fill = document.getElementById("fill");
     const change = document.getElementById("change");
     const compressButton = document.getElementById("compress");
+    const compressLabel = document.getElementById("compress-label");
+    const compressSpinner = document.getElementById("compress-spinner");
     const downloadButton = document.getElementById("download");
     const againButton = document.getElementById("again");
 
@@ -590,7 +605,7 @@
       }, 150);
       wasmReady = fetch("gs-worker.wasm").then(async (response) => {
         if (!response.ok || !response.body) {
-          throw new Error("Ghostscript could not be loaded.");
+          throw new Error("The compression library could not be loaded.");
         }
         const total = Number(response.headers.get("Content-Length")) || 0;
         const reader = response.body.getReader();
@@ -618,7 +633,7 @@
       });
       wasmReady = wasmReady.catch((err) => {
         wasmReady = null;
-        showError("Ghostscript could not be loaded. Reload the page and try again.");
+        showError("The compression library could not be loaded. Reload the page and try again.");
         throw err;
       });
       return wasmReady;
@@ -639,7 +654,9 @@
       compressButton.hidden = done;
       compressButton.disabled = state !== "ready";
       compressButton.classList.toggle("is-busy", busy);
-      compressButton.textContent = busy ? "Compressing…" : "Compress";
+      const spinning = busy && Boolean(wasmBinary);
+      compressLabel.textContent = !busy ? "Compress" : spinning ? "Compressing…" : "Loading compression library…";
+      compressSpinner.hidden = !spinning;
       downloadButton.hidden = !done;
       againButton.hidden = !done;
       result.hidden = !done;
@@ -736,7 +753,6 @@
       if (state !== "working") return;
       let wasm;
       try {
-        if (!wasmBinary) compressButton.textContent = "Loading Ghostscript…";
         wasm = await loadWasm();
       } catch (err) {
         if (state === "working") state = "ready";
@@ -744,7 +760,7 @@
         return;
       }
       if (state !== "working") return;
-      compressButton.textContent = "Compressing…";
+      render();
       const wasmCopy = wasm.slice(0);
       const current = new Worker("compress-worker.js", { type: "module" });
       worker = current;
