@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compress a PDF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --mat: #c9d4ca;
+      --sheet: #f7f8f5;
+      --ink: #1c2622;
+      --muted: #46564e;
+      --line: #b7c4b8;
+      --line-strong: #7f9184;
+      --moss: #1f6b45;
+      --moss-dark: #164e32;
+      --rust: #8c3b32;
+      --tint: #e5f0e8;
+      --sans: "Atkinson Hyperlegible", "Avenir Next", "Segoe UI", sans-serif;
+      --mono: "DM Mono", ui-monospace, "SFMono-Regular", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.4;
+      background: var(--mat);
+    }
+
+    .sheet {
+      width: min(440px, calc(100% - 32px));
+      margin: 48px auto 64px;
+      padding: 36px 24px 28px;
+      background-color: var(--sheet);
+      background-image:
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line)),
+        linear-gradient(var(--line), var(--line));
+      background-repeat: no-repeat;
+      background-size:
+        14px 1px, 1px 14px,
+        14px 1px, 1px 14px,
+        14px 1px, 1px 14px,
+        14px 1px, 1px 14px;
+      background-position:
+        left 14px top 14px, left 14px top 14px,
+        right 14px top 14px, right 14px top 14px,
+        left 14px bottom 14px, left 14px bottom 14px,
+        right 14px bottom 14px, right 14px bottom 14px;
+      box-shadow: 0 18px 40px rgba(28, 38, 34, 0.1);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.7rem;
+      line-height: 1.15;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-wrap: balance;
+    }
+
+    .lede {
+      margin: 0 0 22px;
+      color: var(--muted);
+      max-width: 28ch;
+    }
+
+    .drop {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-height: 128px;
+      margin-bottom: 22px;
+      padding: 18px;
+      border: 1.5px dashed var(--line-strong);
+      text-align: center;
+      cursor: pointer;
+      color: inherit;
+    }
+
+    .drop:hover,
+    .picker.is-over .drop {
+      border-color: var(--moss);
+      background: var(--tint);
+    }
+
+    .drop.has-file {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      min-height: 76px;
+      border-style: solid;
+      text-align: left;
+    }
+
+    .drop svg {
+      display: block;
+      width: 26px;
+      height: 32px;
+      margin-bottom: 8px;
+    }
+
+    .pick-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .drop.has-file svg,
+    .drop.has-file .pick-empty { display: none; }
+
+    .pick-title { font-weight: 700; }
+    .pick-hint { color: var(--muted); font-size: 0.9rem; }
+
+    .file-copy {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-size {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .file-change {
+      flex: none;
+      margin-left: 12px;
+      color: var(--moss);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .vh {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    input[type="file"].vh { position: absolute; }
+
+    fieldset {
+      border: 0;
+      padding: 0;
+      margin: 0 0 18px;
+      min-inline-size: 0;
+      min-width: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    legend {
+      padding: 0;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .field { display: grid; gap: 6px; min-width: 0; }
+
+    .field > label { font-weight: 700; }
+
+    select {
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      height: 44px;
+      padding: 0 36px 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background-color: #fff;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%231c2622' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      appearance: none;
+    }
+
+    .error {
+      margin: 0 0 14px;
+      color: var(--rust);
+    }
+
+    .result { margin-bottom: 18px; }
+
+    .result-name {
+      margin: 0 0 14px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .track {
+      height: 12px;
+      margin-bottom: 16px;
+      background: var(--line);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: 100%;
+      background: var(--moss);
+      border-radius: 2px;
+    }
+
+    .fill.is-over { background: var(--rust); }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .fill { transition: width 700ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+    }
+
+    .figures {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .num {
+      display: block;
+      font-family: var(--mono);
+      font-size: 1.5rem;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+    }
+
+    .cap {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .change .num { color: var(--moss); }
+    .change.is-over .num { color: var(--rust); }
+
+    .save-as {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .actions { display: grid; gap: 4px; }
+
+    button,
+    a.primary {
+      height: 48px;
+      border: 0;
+      border-radius: 2px;
+      font-weight: 700;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+    }
+
+    .primary {
+      background: var(--moss);
+      color: #fff;
+    }
+
+    .primary:hover:not(:disabled) { background: var(--moss-dark); }
+    .primary:active:not(:disabled) { transform: translateY(1px); }
+
+    .primary:disabled {
+      background: #d5ddd6;
+      color: #66756c;
+      cursor: not-allowed;
+    }
+
+    .primary.is-busy:disabled {
+      background: var(--moss);
+      color: #fff;
+      cursor: progress;
+    }
+
+    .text {
+      background: transparent;
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .text:hover { color: var(--moss-dark); }
+
+    .credit {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .credit a { color: inherit; }
+
+    :focus-visible {
+      outline: 2px solid var(--moss);
+      outline-offset: 2px;
+    }
+
+    fieldset:disabled {
+      opacity: 0.5;
+    }
+
+    @media (max-width: 420px) {
+      .sheet { margin-top: 20px; padding: 32px 16px 16px; }
+      .num { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet" id="app" data-state="empty">
+    <h1>Compress a PDF</h1>
+    <p class="lede">The file stays on this computer.</p>
+
+    <div class="picker" id="picker">
+      <input class="vh" id="file" type="file" accept="application/pdf,.pdf" />
+      <label class="drop" id="drop" for="file">
+        <span class="pick-empty" id="pick-empty">
+          <svg viewBox="0 0 32 40" aria-hidden="true">
+            <path d="M7 2h13l8 8v27H7z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M20 2v8h8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+          <span class="pick-title">Choose a PDF</span>
+          <span class="pick-hint">or drop it here</span>
+        </span>
+        <span class="file-copy" id="file-row" hidden>
+          <span class="file-name" id="file-name"></span>
+          <span class="file-size" id="file-size"></span>
+        </span>
+        <span class="file-change" id="file-change" hidden>Change</span>
+      </label>
+    </div>
+
+    <fieldset id="options">
+      <legend>Options</legend>
+
+      <div class="field">
+        <label for="preset">Preset</label>
+        <select id="preset">
+          <option value="screen">Screen — 72 dpi, smallest files</option>
+          <option value="ebook" selected>Ebook — 150 dpi</option>
+          <option value="printer">Printer — 300 dpi</option>
+          <option value="prepress">Prepress — 300 dpi, keep color</option>
+          <option value="default">Default — do not downsample images</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="resolution">Image resolution</label>
+        <select id="resolution">
+          <option value="">Use preset</option>
+          <option value="72">72 dpi</option>
+          <option value="96" selected>96 dpi</option>
+          <option value="150">150 dpi</option>
+          <option value="200">200 dpi</option>
+          <option value="300">300 dpi</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="quality">Image quality</label>
+        <select id="quality">
+          <option value="">Use preset</option>
+          <option value="smaller">Smaller</option>
+          <option value="medium" selected>Medium</option>
+          <option value="sharper">Sharper</option>
+          <option value="highest">Highest</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <p class="error" id="error" role="alert" hidden></p>
+
+    <div class="result" id="result" hidden>
+      <p class="result-name" id="result-name"></p>
+      <div class="track" aria-hidden="true"><div class="fill" id="fill"></div></div>
+      <div class="figures">
+        <div>
+          <span class="num" id="original-size"></span>
+          <span class="cap">Original</span>
+        </div>
+        <div>
+          <span class="num" id="compressed-size"></span>
+          <span class="cap">Compressed</span>
+        </div>
+        <div class="change" id="change">
+          <span class="num" id="change-num"></span>
+          <span class="cap" id="change-cap"></span>
+        </div>
+      </div>
+      <p class="save-as" id="save-as"></p>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="compress" type="button" disabled>Compress</button>
+      <a class="primary" id="download" hidden>Download</a>
+      <button class="text" id="again" type="button" hidden>Compress another</button>
+    </div>
+    <p class="credit">Built with <a href="https://github.com/ochachacha/ps-wasm">ps-wasm</a></p>
+  </main>
+
+  <script>
+    const presets = new Set(["screen", "ebook", "printer", "prepress", "default"]);
+    const resolutions = new Set(["", "72", "96", "150", "200", "300"]);
+    const qualityFactor = { smaller: "0.76", medium: "0.40", sharper: "0.25", highest: "0.15" };
+
+    const app = document.getElementById("app");
+    const picker = document.getElementById("picker");
+    const drop = document.getElementById("drop");
+    const fileInput = document.getElementById("file");
+    const pickEmpty = document.getElementById("pick-empty");
+    const fileRow = document.getElementById("file-row");
+    const fileChange = document.getElementById("file-change");
+    const fileName = document.getElementById("file-name");
+    const fileSize = document.getElementById("file-size");
+    const options = document.getElementById("options");
+    const preset = document.getElementById("preset");
+    const resolution = document.getElementById("resolution");
+    const quality = document.getElementById("quality");
+    const error = document.getElementById("error");
+    const result = document.getElementById("result");
+    const fill = document.getElementById("fill");
+    const change = document.getElementById("change");
+    const compressButton = document.getElementById("compress");
+    const downloadButton = document.getElementById("download");
+    const againButton = document.getElementById("again");
+
+    let state = "empty";
+    let file = null;
+    let worker = null;
+    let downloadUrl = "";
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
+      const mb = bytes / (1024 * 1024);
+      return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + " MB";
+    }
+
+    function isPdf(item) {
+      return item && (item.type === "application/pdf" || /\.pdf$/i.test(item.name));
+    }
+
+    function compressedName(name) {
+      return name.replace(/\.pdf$/i, "") + "-compressed.pdf";
+    }
+
+    function buildArgs() {
+      const chosenPreset = presets.has(preset.value) ? preset.value : "ebook";
+      const args = [
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.7",
+        "-dPDFSETTINGS=/" + chosenPreset,
+        "-dNOPAUSE",
+        "-dBATCH",
+        "-sOutputFile=output.pdf",
+      ];
+      if (resolutions.has(resolution.value) && resolution.value) {
+        args.push(
+          "-dDownsampleColorImages=true",
+          "-dDownsampleGrayImages=true",
+          "-dColorImageDownsampleType=/Bicubic",
+          "-dGrayImageDownsampleType=/Bicubic",
+          "-dColorImageResolution=" + resolution.value,
+          "-dGrayImageResolution=" + resolution.value
+        );
+      }
+      const factor = qualityFactor[quality.value];
+      if (factor) {
+        args.push(
+          "-dPassThroughJPEGImages=false",
+          "-dAutoFilterColorImages=false",
+          "-dAutoFilterGrayImages=false",
+          "-dColorImageFilter=/DCTEncode",
+          "-dGrayImageFilter=/DCTEncode",
+          "-c",
+          "<< /ColorImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> /GrayImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> >> setdistillerparams"
+        );
+      }
+      args.push("-f", "input.pdf");
+      return args;
+    }
+
+    function showError(message) {
+      error.hidden = !message;
+      error.textContent = message || "";
+    }
+
+    function render() {
+      app.dataset.state = state;
+      const busy = state === "working";
+      const done = state === "done";
+      options.disabled = busy;
+      options.hidden = done;
+      fileInput.disabled = busy;
+      picker.hidden = done;
+      drop.classList.toggle("has-file", Boolean(file));
+      pickEmpty.hidden = Boolean(file);
+      fileRow.hidden = !file;
+      fileChange.hidden = !file;
+      compressButton.hidden = done;
+      compressButton.disabled = state !== "ready";
+      compressButton.classList.toggle("is-busy", busy);
+      compressButton.textContent = busy ? "Compressing…" : "Compress";
+      downloadButton.hidden = !done;
+      againButton.hidden = !done;
+      result.hidden = !done;
+      app.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+
+    function stopWorker() {
+      if (!worker) return;
+      worker.terminate();
+      worker = null;
+    }
+
+    function clearDownload() {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      downloadUrl = "";
+      downloadButton.removeAttribute("href");
+      downloadButton.removeAttribute("download");
+    }
+
+    function setFile(next) {
+      if (!isPdf(next)) {
+        showError("That file isn’t a PDF. Choose a .pdf file.");
+        return;
+      }
+      file = next;
+      fileName.textContent = next.name;
+      fileSize.textContent = formatBytes(next.size);
+      showError("");
+      state = "ready";
+      render();
+    }
+
+    function showResult(bytes) {
+      const original = file.size;
+      const compressed = bytes.byteLength;
+      const pct = Math.round(Math.abs(original - compressed) / original * 100);
+      const larger = compressed > original;
+      document.getElementById("result-name").textContent = file.name;
+      document.getElementById("original-size").textContent = formatBytes(original);
+      document.getElementById("compressed-size").textContent = formatBytes(compressed);
+      document.getElementById("change-num").textContent = pct + "%";
+      document.getElementById("change-cap").textContent = larger ? "larger" : pct === 0 ? "same size" : "smaller";
+      document.getElementById("save-as").textContent = "Saves as " + compressedName(file.name);
+      clearDownload();
+      downloadUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      downloadButton.href = downloadUrl;
+      downloadButton.download = compressedName(file.name);
+      change.classList.toggle("is-over", larger);
+      fill.classList.toggle("is-over", larger);
+      fill.style.width = "100%";
+      state = "done";
+      render();
+      requestAnimationFrame(() => {
+        fill.style.width = Math.min(100, (compressed / original) * 100) + "%";
+      });
+    }
+
+    fileInput.addEventListener("change", () => {
+      const next = fileInput.files && fileInput.files[0];
+      if (next) setFile(next);
+    });
+
+    ["dragenter", "dragover"].forEach((name) => {
+      picker.addEventListener(name, (event) => {
+        event.preventDefault();
+        if (state === "working" || state === "done") return;
+        picker.classList.add("is-over");
+      });
+    });
+    picker.addEventListener("dragleave", () => picker.classList.remove("is-over"));
+    picker.addEventListener("drop", (event) => {
+      event.preventDefault();
+      picker.classList.remove("is-over");
+      if (state === "working" || state === "done") return;
+      const next = event.dataTransfer.files && event.dataTransfer.files[0];
+      if (next) setFile(next);
+    });
+
+    compressButton.addEventListener("click", async () => {
+      if (state !== "ready" || !file) return;
+      state = "working";
+      showError("");
+      render();
+      stopWorker();
+      let bytes;
+      try {
+        bytes = await file.arrayBuffer();
+      } catch (err) {
+        state = "ready";
+        showError("That PDF could not be read. Choose it again.");
+        render();
+        return;
+      }
+      if (state !== "working") return;
+      const current = new Worker("compress-worker.js", { type: "module" });
+      worker = current;
+      current.onmessage = (event) => {
+        if (worker !== current) return;
+        stopWorker();
+        if (!event.data || !event.data.ok) {
+          if (event.data && event.data.detail) console.error(event.data.detail);
+          state = "ready";
+          showError((event.data && event.data.error) || "Compression failed. Try another PDF.");
+          render();
+          return;
+        }
+        showResult(new Uint8Array(event.data.pdf));
+      };
+      current.onerror = () => {
+        if (worker !== current) return;
+        stopWorker();
+        state = "ready";
+        showError("Compression failed. Try another PDF.");
+        render();
+      };
+      current.postMessage({ bytes, args: buildArgs() }, [bytes]);
+    });
+
+    againButton.addEventListener("click", () => {
+      stopWorker();
+      clearDownload();
+      file = null;
+      fileInput.value = "";
+      state = "empty";
+      showError("");
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

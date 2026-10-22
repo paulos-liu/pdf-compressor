@@ -1,0 +1,9 @@
+gs-worker.js and gs-worker.wasm are Ghostscript compiled to WebAssembly.
+Ghostscript is copyright Artifex Software, Inc. and licensed under the
+GNU Affero General Public License, version 3. See LICENSE.
+
+The WebAssembly build is the one published at
+https://github.com/ochachacha/ps-wasm and packaged in
+https://github.com/laurentmmeyer/ghostscript-pdf-compress.wasm.
+
+This page is distributed under the same AGPL-3.0 terms.
