@@ -421,20 +421,8 @@
       <legend>Options</legend>
 
       <div class="field">
-        <label for="preset">Preset</label>
-        <select id="preset">
-          <option value="screen">Screen — 72 dpi, smallest files</option>
-          <option value="ebook" selected>Ebook — 150 dpi</option>
-          <option value="printer">Printer — 300 dpi</option>
-          <option value="prepress">Prepress — 300 dpi, keep color</option>
-          <option value="default">Default — do not downsample images</option>
-        </select>
-      </div>
-
-      <div class="field">
         <label for="resolution">Image resolution</label>
         <select id="resolution">
-          <option value="">Use preset</option>
           <option value="72">72 dpi</option>
           <option value="96" selected>96 dpi</option>
           <option value="150">150 dpi</option>
@@ -446,7 +434,6 @@
       <div class="field">
         <label for="quality">Image quality</label>
         <select id="quality">
-          <option value="">Use preset</option>
           <option value="smaller">Smaller</option>
           <option value="medium" selected>Medium</option>
           <option value="sharper">Sharper</option>
@@ -489,8 +476,7 @@
   </main>
 
   <script>
-    const presets = new Set(["screen", "ebook", "printer", "prepress", "default"]);
-    const resolutions = new Set(["", "72", "96", "150", "200", "300"]);
+    const resolutions = new Set(["72", "96", "150", "200", "300"]);
     const qualityFactor = { smaller: "0.76", medium: "0.40", sharper: "0.25", highest: "0.15" };
 
     const app = document.getElementById("app");
@@ -503,7 +489,6 @@
     const fileName = document.getElementById("file-name");
     const fileSize = document.getElementById("file-size");
     const options = document.getElementById("options");
-    const preset = document.getElementById("preset");
     const resolution = document.getElementById("resolution");
     const quality = document.getElementById("quality");
     const error = document.getElementById("error");
@@ -539,39 +524,30 @@
     }
 
     function buildArgs() {
-      const chosenPreset = presets.has(preset.value) ? preset.value : "ebook";
-      const args = [
+      const dpi = resolutions.has(resolution.value) ? resolution.value : "96";
+      const factor = qualityFactor[quality.value] || qualityFactor.medium;
+      return [
         "-sDEVICE=pdfwrite",
         "-dCompatibilityLevel=1.7",
-        "-dPDFSETTINGS=/" + chosenPreset,
         "-dNOPAUSE",
         "-dBATCH",
         "-sOutputFile=output.pdf",
+        "-dDownsampleColorImages=true",
+        "-dDownsampleGrayImages=true",
+        "-dColorImageDownsampleType=/Bicubic",
+        "-dGrayImageDownsampleType=/Bicubic",
+        "-dColorImageResolution=" + dpi,
+        "-dGrayImageResolution=" + dpi,
+        "-dPassThroughJPEGImages=false",
+        "-dAutoFilterColorImages=false",
+        "-dAutoFilterGrayImages=false",
+        "-dColorImageFilter=/DCTEncode",
+        "-dGrayImageFilter=/DCTEncode",
+        "-c",
+        "<< /ColorImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> /GrayImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> >> setdistillerparams",
+        "-f",
+        "input.pdf",
       ];
-      if (resolutions.has(resolution.value) && resolution.value) {
-        args.push(
-          "-dDownsampleColorImages=true",
-          "-dDownsampleGrayImages=true",
-          "-dColorImageDownsampleType=/Bicubic",
-          "-dGrayImageDownsampleType=/Bicubic",
-          "-dColorImageResolution=" + resolution.value,
-          "-dGrayImageResolution=" + resolution.value
-        );
-      }
-      const factor = qualityFactor[quality.value];
-      if (factor) {
-        args.push(
-          "-dPassThroughJPEGImages=false",
-          "-dAutoFilterColorImages=false",
-          "-dAutoFilterGrayImages=false",
-          "-dColorImageFilter=/DCTEncode",
-          "-dGrayImageFilter=/DCTEncode",
-          "-c",
-          "<< /ColorImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> /GrayImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> >> setdistillerparams"
-        );
-      }
-      args.push("-f", "input.pdf");
-      return args;
     }
 
     function showError(message) {
