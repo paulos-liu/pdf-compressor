@@ -472,12 +472,12 @@
       <a class="primary" id="download" hidden>Download</a>
       <button class="text" id="again" type="button" hidden>Compress another</button>
     </div>
-    <p class="credit">Built with <a href="https://github.com/ochachacha/ps-wasm">ps-wasm</a></p>
+    <p class="credit">Built with pdf-squeeze based on <a href="https://github.com/ArtifexSoftware/ghostpdl">GhostPDL</a></p>
   </main>
 
   <script>
     const resolutions = new Set(["72", "96", "150", "200", "300"]);
-    const qualityFactor = { smaller: "0.76", medium: "0.40", sharper: "0.25", highest: "0.15" };
+    const qualityFactor = { smaller: 0.76, medium: 0.4, sharper: 0.25, highest: 0.15 };
 
     const app = document.getElementById("app");
     const picker = document.getElementById("picker");
@@ -523,33 +523,6 @@
       return name.replace(/\.pdf$/i, "") + "-compressed.pdf";
     }
 
-    function buildArgs() {
-      const dpi = resolutions.has(resolution.value) ? resolution.value : "96";
-      const factor = qualityFactor[quality.value] || qualityFactor.medium;
-      return [
-        "-sDEVICE=pdfwrite",
-        "-dCompatibilityLevel=1.7",
-        "-dNOPAUSE",
-        "-dBATCH",
-        "-sOutputFile=output.pdf",
-        "-dDownsampleColorImages=true",
-        "-dDownsampleGrayImages=true",
-        "-dColorImageDownsampleType=/Bicubic",
-        "-dGrayImageDownsampleType=/Bicubic",
-        "-dColorImageResolution=" + dpi,
-        "-dGrayImageResolution=" + dpi,
-        "-dPassThroughJPEGImages=false",
-        "-dAutoFilterColorImages=false",
-        "-dAutoFilterGrayImages=false",
-        "-dColorImageFilter=/DCTEncode",
-        "-dGrayImageFilter=/DCTEncode",
-        "-c",
-        "<< /ColorImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> /GrayImageDict << /QFactor " + factor + " /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> >> setdistillerparams",
-        "-f",
-        "input.pdf",
-      ];
-    }
-
     function showError(message) {
       error.hidden = !message;
       error.textContent = message || "";
@@ -579,7 +552,7 @@
       const reveal = window.setTimeout(() => {
         loading.hidden = false;
       }, 150);
-      wasmReady = fetch("gs-worker.wasm").then(async (response) => {
+      wasmReady = fetch("lib/pdf-squeeze/dist/gpdf.wasm").then(async (response) => {
         if (!response.ok || !response.body) {
           throw new Error("The compression library could not be loaded.");
         }
@@ -738,7 +711,7 @@
       if (state !== "working") return;
       render();
       const wasmCopy = wasm.slice(0);
-      const current = new Worker("compress-worker.js", { type: "module" });
+      const current = new Worker("lib/pdf-squeeze/src/worker.mjs", { type: "module" });
       worker = current;
       current.onmessage = (event) => {
         if (worker !== current) return;
@@ -759,7 +732,9 @@
         showError("Compression failed. Try another PDF.");
         render();
       };
-      current.postMessage({ bytes, args: buildArgs(), wasm: wasmCopy }, [bytes, wasmCopy]);
+      const dpi = resolutions.has(resolution.value) ? Number(resolution.value) : 96;
+      const qFactor = qualityFactor[quality.value] || qualityFactor.medium;
+      current.postMessage({ id: 1, bytes, options: { dpi, qFactor }, wasm: wasmCopy }, [bytes, wasmCopy]);
     });
 
     againButton.addEventListener("click", () => {

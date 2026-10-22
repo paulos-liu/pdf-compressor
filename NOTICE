@@ -1,9 +1,11 @@
-gs-worker.js and gs-worker.wasm are Ghostscript compiled to WebAssembly.
-Ghostscript is copyright Artifex Software, Inc. and licensed under the
+lib/pdf-squeeze/dist/gpdf.wasm and lib/pdf-squeeze/dist/gpdf.mjs are GhostPDL
+(Ghostscript's PDF interpreter and pdfwrite) compiled to WebAssembly.
+GhostPDL is copyright Artifex Software, Inc. and licensed under the
 GNU Affero General Public License, version 3. See LICENSE.
 
-The WebAssembly build is the one published at
-https://github.com/ochachacha/ps-wasm and packaged in
-https://github.com/laurentmmeyer/ghostscript-pdf-compress.wasm.
+Corresponding source: GhostPDL commit 51e531d5fc35b04146454a9a14dfb7adea9e4a78
+(https://github.com/ArtifexSoftware/ghostpdl), with the changes in
+lib/pdf-squeeze/patches/ghostpdl-qfactor.patch, and the build scripts in
+https://github.com/paulos-liu/pdf-squeeze.
 
-This page is distributed under the same AGPL-3.0 terms.
+This page and lib/pdf-squeeze are distributed under the same AGPL-3.0 terms.
